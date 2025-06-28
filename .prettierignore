@@ -1,0 +1,47 @@
+# Dependency folders
+node_modules
+
+# Build output
+dist
+build
+
+# Environment variables
+.env
+.env.*
+
+# Logs
+logs
+*.log
+
+# Coverage reports
+coverage
+
+# Compiled assets
+*.min.js
+*.min.css
+
+# Database files
+*.sqlite
+*.db
+
+# OS & editor files
+.DS_Store
+Thumbs.db
+.vscode
+.idea
+
+# Git
+.git
+.gitignore
+
+# Lockfiles (optional to ignore)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Temporary files
+tmp
+temp
+
+# Test snapshots
+*.snap
