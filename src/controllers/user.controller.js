@@ -3,6 +3,7 @@ import { apierror } from "../utils/apierrors.js";
 import { User } from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinay.js";
 import { apiresponse } from "../utils/apiresponse.js";
+import { response } from "express";
 
 const generateAccessTokenAndRefreshToken = async (userId) => {
     try {
@@ -218,4 +219,37 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     }
 });
 
-export { registerUser, loginUser, logoutUser, refreshAccessToken };
+const changeCurrentPassword = asyncHandler(async (req, res) => {
+    const { oldPassword, newPassword } = req.body;
+
+    const user = await User.findById(user?._id);
+
+    const isCorrect = await user.isPasswordCorrect(oldPassword);
+
+    if (!isCorrect) {
+        throw new apierror(400, "INCORRECT PASSWORD");
+    }
+    user.password = newPassword;
+    await user.save({ validateBeforeSave: false });
+
+    return res
+        .status(200)
+        .json(new apiresponse(200, {}, "PASSWORD CHANGED SUCCESSFULLY"));
+});
+
+const currentUser = asyncHandler(async (req, res) => {
+    return res
+        .status(200)
+        .json(
+            new apiresponse(200, req.user, "CURRENT USER FETCHED SUCCESSFULLY")
+        );
+});
+
+export {
+    registerUser,
+    loginUser,
+    logoutUser,
+    refreshAccessToken,
+    changeCurrentPassword,
+    currentUser,
+};
