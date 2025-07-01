@@ -3,7 +3,6 @@ import { apierror } from "../utils/apierrors.js";
 import { User } from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinay.js";
 import { apiresponse } from "../utils/apiresponse.js";
-import { response } from "express";
 
 const generateAccessTokenAndRefreshToken = async (userId) => {
     try {
@@ -245,6 +244,83 @@ const currentUser = asyncHandler(async (req, res) => {
         );
 });
 
+const updateAccountDetails = asyncHandler(async (req, res) => {
+    const { fullName, email } = req.body;
+    if (!fullName || !email) {
+        throw new apierror(400, "ALL FIELDS ARE REQUIRED");
+    }
+
+    const user = await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set: {
+                fullName,
+                email,
+            },
+        },
+        { new: true }
+    ).select("-password");
+
+    return res
+        .status(200)
+        .json(
+            new apiresponse(200, user, "ACCOUNT DETAILS UPDATED SUCCESSFULLY")
+        );
+});
+
+const updateUserAvatar = asyncHandler(async (req, res) => {
+    
+    const avatarLocalPath = req.file?.path;
+    if (!avatarLocalPath) {
+        throw new apierror(400, "AVATAR FILE IS MISSING ");
+    }
+    const avatar = await uploadOnCloudinary(avatarLocalPath);
+
+    if (!avatar.url) {
+        throw new apierror(400, "ERROR UPLAODING FILE ON CLOUDINARY");
+    }
+
+    const user = await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set: {
+                avatar: avatar.url,
+            },
+        },
+        { new: true }
+    ).select("-password");
+
+    return res
+        .status(200)
+        .json(new apiresponse(200, user, "AVATAR IMAGE UPDATED SUCCESSFULLY"));
+});
+
+const updateUserCoverImage = asyncHandler(async (req, res) => {
+
+    const coverImageLocalPath = req.file?.path;
+    if (!coverImageLocalPath) {
+        throw new apierror(400, "COVER IMAGE  FILE IS MISSING ");
+    }
+    const coverImage = await uploadOnCloudinary(coverImageLocalPath);
+
+    if (!coverImage.url) {
+        throw new apierror(400, "ERROR UPLAODING FILE ON CLOUDINARY");
+    }
+
+    const user = await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set: {
+                coverImage: coverImage.url,
+            },
+        },
+        { new: true }
+    ).select("-password");
+
+    return res
+        .status(200)
+        .json(new apiresponse(200, user, "COVER IMAGE UPDATED SUCCESSFULLY"));
+});
 export {
     registerUser,
     loginUser,
@@ -252,4 +328,7 @@ export {
     refreshAccessToken,
     changeCurrentPassword,
     currentUser,
+    updateAccountDetails,
+    updateUserAvatar,
+    updateUserCoverImage,
 };
