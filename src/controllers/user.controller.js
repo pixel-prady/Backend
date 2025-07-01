@@ -1,7 +1,10 @@
 import { asyncHandler } from "../utils/asynchandler.js";
 import { apierror } from "../utils/apierrors.js";
 import { User } from "../models/user.model.js";
-import { uploadOnCloudinary } from "../utils/cloudinay.js";
+import {
+    deleteFromCloudinary,
+    uploadOnCloudinary,
+} from "../utils/cloudinay.js";
 import { apiresponse } from "../utils/apiresponse.js";
 
 const generateAccessTokenAndRefreshToken = async (userId) => {
@@ -269,8 +272,8 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
 });
 
 const updateUserAvatar = asyncHandler(async (req, res) => {
-    
     const avatarLocalPath = req.file?.path;
+
     if (!avatarLocalPath) {
         throw new apierror(400, "AVATAR FILE IS MISSING ");
     }
@@ -280,15 +283,18 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
         throw new apierror(400, "ERROR UPLAODING FILE ON CLOUDINARY");
     }
 
-    const user = await User.findByIdAndUpdate(
-        req.user?._id,
-        {
-            $set: {
-                avatar: avatar.url,
-            },
-        },
-        { new: true }
-    ).select("-password");
+    const user = await User.findById(req.user?._id);
+
+    if (!user) {
+        throw new apierror(400, "USER NOT FOUND ");
+    }
+    const public_id = user.avatar;
+
+    user.avatar = avatar.url;
+
+    await user.save({ validateBeforeSave: false });
+
+    await deleteFromCloudinary(public_id);
 
     return res
         .status(200)
@@ -296,31 +302,38 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
 });
 
 const updateUserCoverImage = asyncHandler(async (req, res) => {
-
     const coverImageLocalPath = req.file?.path;
     if (!coverImageLocalPath) {
-        throw new apierror(400, "COVER IMAGE  FILE IS MISSING ");
+        throw new apierror(400, "COVER IMAGE FILE IS MISSING");
     }
+
     const coverImage = await uploadOnCloudinary(coverImageLocalPath);
 
     if (!coverImage.url) {
-        throw new apierror(400, "ERROR UPLAODING FILE ON CLOUDINARY");
+        throw new apierror(400, "ERROR UPLOADING FILE ON CLOUDINARY");
     }
 
-    const user = await User.findByIdAndUpdate(
-        req.user?._id,
-        {
-            $set: {
-                coverImage: coverImage.url,
-            },
-        },
-        { new: true }
-    ).select("-password");
+    const user = await User.findById(req.user?._id);
+
+    if (!user) {
+        throw new apierror(404, "USER NOT FOUND");
+    }
+
+    const oldCoverImage = user.coverImage;
+
+    user.coverImage = coverImage.url;
+
+    await user.save({ validateBeforeSave: false });
+
+    if (oldCoverImage) {
+        await deleteFromCloudinary(oldCoverImage);
+    }
 
     return res
         .status(200)
         .json(new apiresponse(200, user, "COVER IMAGE UPDATED SUCCESSFULLY"));
 });
+
 export {
     registerUser,
     loginUser,
