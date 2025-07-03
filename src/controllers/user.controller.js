@@ -224,7 +224,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 const changeCurrentPassword = asyncHandler(async (req, res) => {
     const { oldPassword, newPassword } = req.body;
 
-    const user = await User.findById(user?._id);
+    const user = await User.findById(req.user?._id);
 
     const isCorrect = await user.isPasswordCorrect(oldPassword);
 
@@ -334,6 +334,88 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
         .json(new apiresponse(200, user, "COVER IMAGE UPDATED SUCCESSFULLY"));
 });
 
+const getUserChannelProfile = asyncHandler(async (req, res) => {
+    const { username } = req.params;
+    if (!username?.trim()) {
+        throw new apierror(400, "USERNAME IS MISSING ");
+    }
+
+    const currentUserId = req.user?._id
+        ? new mongoose.Types.ObjectId(req.user._id)
+        : null;
+
+    const channel = await User.aggregate([
+        {
+            $match: {
+                username: username?.toLowerCase(),
+            },
+        },
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "channel",
+                as: "subscribers",
+            },
+        },
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "subscriber",
+                as: "subscribedTo",
+            },
+        },
+        {
+            $addFields: {
+                currentUserId: currentUserId,
+                subscribersCount: {
+                    $size: "$subscribers",
+                },
+                channelSubscribedToCount: {
+                    $size: "$subscribedTo",
+                },
+                // to show subscribe or subscribed to frontend (true = subscribed , false = notSubscribed)
+                isSubscribed: {
+                    $cond: {
+                        if: {
+                            $in: ["$currentUserId", "$subscribers.subscriber"],
+                        },
+                        then: true,
+                        else: false,
+                    },
+                },
+            },
+        },
+        {
+            $project: {
+                fullName: 1,
+                username: 1,
+                subscribersCount: 1,
+                channelSubscribedToCount: 1,
+                isSubscribed: 1,
+                avatar: 1,
+                coverImage: 1,
+                email: 1,
+                createdAt: 1,
+            },
+        },
+    ]);
+
+    if (!channel?.length) {
+        throw new apierror(404, "CHANNEL DOES NOT EXIST ");
+    }
+
+    return res
+        .status(200)
+        .json(
+            new apiresponse(
+                200,
+                channel[0],
+                "USER CHANNEL FETCHED SUCCESSFULLY"
+            )
+        );
+});
 export {
     registerUser,
     loginUser,
