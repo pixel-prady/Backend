@@ -6,6 +6,7 @@ import {
     uploadOnCloudinary,
 } from "../utils/cloudinay.js";
 import { apiresponse } from "../utils/apiresponse.js";
+import mongoose from "mongoose";
 
 const generateAccessTokenAndRefreshToken = async (userId) => {
     try {
@@ -416,6 +417,58 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
             )
         );
 });
+
+const getWatchHistory = asyncHandler(async (req, res) => {
+    const currentUserId = req.user?._id
+        ? new mongoose.Types.ObjectId(req.user._id)
+        : null;
+
+    const user = await User.aggregate([
+        {
+            $match: {
+                _id: currentUserId,
+            },
+        },
+        {
+            $lookup: {
+                from: "videos",
+                localField: "watchHistory",
+                foreignField: "_id",
+                as: "watchHistory",
+                pipeline: [
+                    {
+                        $lookup: {
+                            from: "users",
+                            localField: "owner",
+                            foreignField: "_id",
+                            as: "owner",
+                            pipeline: [
+                                {
+                                    $project: {
+                                        fullName: 1,
+                                        username: 1,
+                                        avatar: 1,
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                    {
+                        $addFields: {
+                            owner: {
+                                $first: "$owner",
+                            },
+                        },
+                    },
+                ],
+            },
+        },
+    ]);
+
+    return res
+        .status(200)
+        .json(200, user[0].watchHistory, "WATCH HISTORY FETCHED SUCCESSFULLY");
+});
 export {
     registerUser,
     loginUser,
@@ -426,4 +479,6 @@ export {
     updateAccountDetails,
     updateUserAvatar,
     updateUserCoverImage,
+    getUserChannelProfile,
+    getWatchHistory,
 };
